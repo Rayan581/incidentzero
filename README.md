@@ -44,7 +44,25 @@ Several student-requirement tests are expected to fail in the untouched starter.
 Live run with Groq:
 
 ```bash
-python -m incidentzero.cli run --student-id 22I-1234 --scenario public-a --model openai/gpt-oss-20b
+python -m incidentzero.cli run --student-id 23I-0018 --scenario public-a --model openai/gpt-oss-20b --auto-approve
+python -m incidentzero.cli run --student-id 23I-0018 --scenario public-b --model openai/gpt-oss-20b --auto-approve
+python -m incidentzero.cli run --student-id 23I-0018 --scenario public-c --model openai/gpt-oss-20b --auto-approve
+```
+
+## Running Verification Suite
+
+```bash
+# Verify protected file integrity
+python scripts/check_protected_integrity.py
+
+# Verify no prohibited agent frameworks
+python scripts/check_banned_imports.py
+
+# Verify no remaining TODO markers
+python scripts/count_todos.py
+
+# Run all 26 public and student unit tests (offline, no Groq quota used)
+pytest
 ```
 
 ## Stable contract

@@ -318,8 +318,14 @@ class AgentController:
                 try:
                     reply = self._model_decide()
                 except TransientModelError as exc:
-                    # All retries exhausted; escalate rather than crash
                     self.trace.record("model_error_fatal", {"error": str(exc)})
+                    err_str = str(exc)
+                    if ("tool_use_failed" in err_str or "attempted to call tool" in err_str) and self.budget.remaining_llm > 1:
+                        self._inject_observation(
+                            "The previous tool call failed validation with the provider. "
+                            "Ensure you call only registered tools using their exact names without any suffixes, commentary, or extra tokens."
+                        )
+                        continue
                     return self._build_outcome(
                         "failed",
                         f"Model call failed after all retries: {exc}",

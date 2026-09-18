@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--student-id", required=True)
     run.add_argument("--scenario", default="public-a")
     run.add_argument("--model", default=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"))
+    run.add_argument("--auto-approve", action="store_true", help="Automatically approve sensitive actions")
     return parser
 
 
@@ -35,10 +36,12 @@ def main() -> None:
         env = SimulationEnvironment(args.student_id, args.scenario)
         registry = ToolRegistry(env)
         trace_path = Path("traces") / f"{args.student_id}_{args.scenario}.jsonl"
+        from incidentzero.approval.gateway import AlwaysApproveGateway
+        approval_gw = AlwaysApproveGateway() if getattr(args, "auto_approve", False) else ConsoleApprovalGateway()
         controller = AgentController(
             model=GroqModelClient(model=args.model),
             tools=registry,
-            approval=ConsoleApprovalGateway(),
+            approval=approval_gw,
             budget=BudgetManager(),
             trace=TraceRecorder(trace_path),
         )

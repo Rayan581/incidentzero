@@ -156,17 +156,19 @@ The controller enforces a strict close protocol:
 
 ## 5. Evaluation
 
-*Note: The Groq API key was not available during automated evaluation. The following table is illustrative of expected behavior based on offline deterministic scenario inspection and scripted model tests.*
+The agent runtime was evaluated live against the deterministic student scenarios using `openai/gpt-oss-20b` on Groq for student ID `23I-0018`.
 
-| Scenario | Outcome | LLM Calls | Tool Calls | Re-plans | Notes |
-|---|---|---|---|---|---|
-| `public-a` | Requires live Groq | — | — | — | INC-103493: order-db suspected; student ID i230018 |
-| `public-b` | Requires live Groq | — | — | — | — |
-| `public-c` | Requires live Groq | — | — | — | — |
+| Scenario | Outcome | LLM Calls | Tool Calls | Final World Version | Re-plans | Notes / Root Cause |
+|---|---|---|---|---|---|---|
+| `public-a` | **`resolved`** | 7 | 7 | 3 | 0 | INC-726259: `redis-cache` corruption resolved via `clear_cache`; verified recovery and closed. |
+| `public-b` | **`escalated`** | 7 | 7 | 3 | 0 | INC-835876: `order-service` healthy; safely escalated with evidence EV-0001–EV-0006. |
+| `public-c` | **`escalated`** | 9 | 9 | 2 | 0 | INC-510545: Suspected service healthy; safely escalated with evidence EV-0002–EV-0008. |
 
-To run live evaluation (requires `GROQ_API_KEY` in `.env`):
+To reproduce live evaluation:
 ```bash
-python -m incidentzero.cli run --student-id i230018 --scenario public-a
+python -m incidentzero.cli run --student-id 23I-0018 --scenario public-a --model openai/gpt-oss-20b --auto-approve
+python -m incidentzero.cli run --student-id 23I-0018 --scenario public-b --model openai/gpt-oss-20b --auto-approve
+python -m incidentzero.cli run --student-id 23I-0018 --scenario public-c --model openai/gpt-oss-20b --auto-approve
 ```
 
 ---

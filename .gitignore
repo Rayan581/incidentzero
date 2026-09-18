@@ -10,6 +10,7 @@ artifacts/
 .DS_Store
 
 # Local archives and scratch files
+*.zip
 IncidentZero_Student_Starter.zip
 extracted_starter/
 assignment_a.pdf
