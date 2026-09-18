@@ -1,0 +1,145 @@
+Here is a complete, in-depth guide to your assignment. It breaks down the overarching theme, core concepts, exact system architecture, how the code works, how to run everything, and potential questions for your viva demo.
+
+---
+
+# 1. The Big Picture: What is IncidentZero?
+
+In modern cloud engineering (SRE / DevOps), when a production outage occurs, human engineers investigate logs, query telemetry, isolate root causes, and apply fixes (e.g., restarting crashed containers, rolling back buggy deployments, scaling replicas).
+
+**IncidentZero** is an **autonomous AI SRE agent framework**. Its goal is to take a reported incident alert on a simulated microservices topology, investigate it using diagnostic tools, devise a remediation plan, execute fixes, verify recovery, and close the incident.
+
+### The Real Problem Being Tackled
+A naïve LLM script usually fails in production because:
+1. **Hallucination & Premature Closure:** The LLM claims *"I fixed the database!"* when it actually didn't even run a verification check.
+2. **Infinite Loops:** If a tool fails or an argument is invalid, the LLM often calls the exact same tool with the exact same inputs forever, draining API credits.
+3. **Destructive Actions Without Human Oversight:** An LLM might blindly run a hard restart or drop a cluster without permission.
+4. **API Fragility:** Real LLM APIs (like Groq) throw rate-limits (`429`) or server timeouts (`503`). Without retries, a 10-step agent run crashes halfway through.
+5. **Stale World Understanding:** If an environment changes or a tool fails, the agent’s internal mental model becomes outdated unless it explicitly re-observes the world.
+
+**IncidentZero builds the safety and reliability infrastructure** around the LLM so it acts safely, predictably, and robustly.
+
+---
+
+# 2. Key Concepts Used (Viva Goldmine)
+
+### A. The Agent Sense-Plan-Act Loop (ReAct / Plan-and-Solve)
+Rather than letting the LLM output raw text, the agent runs in a strict deterministic state machine:
+$$\text{Observe World} \longrightarrow \text{Generate / Revise Plan} \longrightarrow \text{Select Tool} \longrightarrow \text{Safety Validation} \longrightarrow \text{Execute Tool} \longrightarrow \text{Verify Post-Conditions}$$
+
+### B. Two-Tier Planning (Strategic vs Tactical)
+* **Strategic Tier (`Planner`):** Formulates an [`AgentPlan`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/agent/planner.py) containing hypotheses, steps, expected observations, and milestones. If unexpected observations occur, the planner executes a **replan** (`Planner.revise()`).
+* **Tactical Tier (`AgentController`):** Dispatches individual [`ToolCall`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/domain/models.py) actions step-by-step.
+
+### C. Human-in-the-Loop (HITL) Approval Gateway
+* Destructive/high-impact tools (e.g., `restart_service`, `rollback_release`, `apply_traffic_shift`) are classified as sensitive.
+* The agent invokes the [`ApprovalGateway`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/approval/gateway.py). If human approval is **denied**, the agent must **not** crash or repeat the call. It records the denial, injects the user's rejection reason into its memory, and replans an alternative strategy.
+
+### D. Loop Detection & Cycle Prevention
+* If the agent repeats identical `(tool_name, tool_arguments)` combinations in a rolling window, the loop guard triggers.
+* It stops repetitive spinning, records a loop failure, and prompts the agent to switch tactics or escalate.
+
+### E. Fault Classification & Bounded Exponential Backoff
+* **Transient Errors:** Rate-limits (`HTTP 429`), timeouts (`503`), network blips. These are retried with exponential backoff:
+  $$\text{Delay} = \text{base\_delay} \times 2^{\text{attempt}} \pm \text{jitter}$$
+* **Permanent Errors:** Authentication failures (`401`), malformed JSON, invalid model names, context overflow. Retrying will never succeed; the agent fails fast.
+
+### F. Verifiable Stopping Conditions (Evidence-Based Closure)
+* The agent cannot close an incident (`close_incident`) simply because it thinks it is done.
+* It must verify telemetry (e.g., error rate $< 1\%$, latency $< 200\text{ms}$, service health `OK`). The controller enforces that closing without prior observation evidence is rejected.
+
+---
+
+# 3. Codebase Architecture: How Everything Works
+
+```
+incidentzero/
+├── agent/
+│   ├── controller.py   <-- THE BRAIN: Manages execution loop, safety pipeline, stopping logic
+│   ├── planner.py      <-- Strategic planner: Generates structured hypotheses & revises plans
+│   ├── policies.py     <-- Safety guardrails: Loop detection, budget tracking, stopping checks
+│   └── recovery.py     <-- Resilience: Exponential backoff retries for transient model errors
+├── approval/
+│   └── gateway.py      <-- Human-in-the-loop approval mechanism for high-impact actions
+├── environment/        <-- Simulated infrastructure (services, logs, metrics, topologies)
+├── model/              <-- LLM clients: GroqModelClient (live) & ScriptedModelClient (offline)
+└── tools/              <-- Diagnostic & remediation tools (query_metrics, tail_logs, restart, etc.)
+```
+
+### The Tool Execution Pipeline in `controller.py`
+For every single step:
+1. **Budget Check:** Ensures `step_budget` and `token_budget` are not exhausted.
+2. **Model Call with Recovery:** [`retry_with_backoff`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/agent/recovery.py) calls the LLM. If Groq hits a rate limit, it backs off and retries automatically.
+3. **Argument Validation:** Ensures tool arguments match expected schemas.
+4. **Loop Guard:** [`LoopDetector`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/agent/policies.py) checks if this exact action has been repeatedly attempted.
+5. **Approval Gateway:** Checks if the tool is high-risk. If yes, requests approval from [`ApprovalGateway`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/approval/gateway.py).
+6. **Execution & Observation:** Runs the tool on the simulated environment.
+7. **Verification / Replan:** If an unexpected error or denial occurs, `Planner.revise()` generates an updated plan.
+8. **Stopping Verification:** If the model issues `close_incident`, [`VerifiableStoppingVerifier`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/agent/policies.py) checks whether verification metrics were satisfied.
+
+---
+
+# 4. How to Run Everything
+
+Open PowerShell in the workspace root:
+`x:\FAST Tasks\7th Semester\Agentic\A1_i230018_Rayan`
+
+### Step 1: Run All Tests (Offline, No API Key Required)
+Run the full test suite (all 26 tests, including infrastructure, public scenarios, and student failure suites):
+```powershell
+python -m pytest tests/ -v
+```
+*(All 26 tests use `ScriptedModelClient` with mock responses, so they run in ~1 second with zero Groq API calls).*
+
+To run only the student reliability suite:
+```powershell
+python -m pytest tests/student -v
+```
+
+### Step 2: Run Integrity & Compliance Checks
+Check for banned imports, protected file tampering, and remaining TODOs:
+```powershell
+python scripts/check_banned_imports.py
+python scripts/check_protected_integrity.py
+python scripts/count_todos.py
+```
+*(All three should exit with 0 errors / 0 TODOs).*
+
+### Step 3: Run Live Agent on a Scenario (Requires Groq API Key)
+1. Add your Groq API key to `.env`:
+   ```env
+   GROQ_API_KEY=gsk_your_actual_key_here
+   ```
+2. Generate or run a scenario:
+   ```powershell
+   python scripts/generate_student_scenario.py --student-id i230018 --scenario public-a
+   ```
+3. Run the agent live:
+   ```powershell
+   python -m incidentzero.cli run --student-id i230018 --scenario public-a
+   ```
+
+---
+
+# 5. Viva Demo Cheat Sheet (Questions & How to Answer)
+
+### Q1: "Why do you have both a Planner and a Controller?"
+> **Answer:** *"Separation of concerns. The **Planner** handles high-level strategic reasoning — it formulates hypotheses about what service is broken and sets milestones. The **Controller** is the operational runtime engine — it manages tool dispatch, enforces safety policies (loop guard, approval gateways, budget constraints), handles API retries, and coordinates the loop."*
+
+### Q2: "How does your system handle transient vs permanent model failures?"
+> **Answer:** *"We built a custom [`retry_with_backoff`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/agent/recovery.py) decorator. It inspects the exception type. If it's a `TransientModelError` (like rate limits or HTTP 503 timeouts), it uses bounded exponential backoff with jitter to retry up to a max limit. If it's a `PermanentModelError` (like bad auth or invalid JSON parameters), it fails fast immediately without wasting time or retries."*
+
+### Q3: "What happens if a human denies an approval request?"
+> **Answer:** *"When `ApprovalGateway.request_approval()` returns `DENIED`, the controller does not crash or repeat the request. Instead, it logs the denial as a tool observation, injects the user's rejection reason into the conversation history, and invokes `Planner.revise()` to replan an alternative, non-destructive path to resolve the incident."*
+
+### Q4: "How does the agent detect and break out of infinite loops?"
+> **Answer:** *"We implemented [`LoopDetector`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/agent/policies.py). It tracks a rolling window of recent tool signatures `(tool_name, arguments_hash)`. If the same signature repeats past the threshold (e.g., 2-3 times), it flags a cycle. The controller intercepts this, halts execution of that duplicate tool, and forces a replan or escalation."*
+
+### Q5: "How do you prevent the LLM from hallucinating that it solved the problem?"
+> **Answer:** *"Through our [`VerifiableStoppingVerifier`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/incidentzero/agent/policies.py). The agent cannot just emit a completion message. When `close_incident` is called, the verifier checks that the agent has actually executed verification tools (like query metrics or health checks) showing normal error rates and latencies within the recent observation window. If not verified, closure is rejected."*
+
+### Q6: "How did you test all of this without burning Groq API credits?"
+> **Answer:** *"All 18 student tests in [`tests/student/test_student_suite.py`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/tests/student/test_student_suite.py) use `ScriptedModelClient`. It feeds predefined sequences of model outputs directly into the controller, allowing deterministic, offline testing of every failure mode (stale worlds, denial recovery, loop detection, budget caps, backoff retries) in under two seconds."*
+
+---
+
+For your written deliverables, both [`REPORT.md`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/REPORT.md) and [`AI_USAGE.md`](file:///x:/FAST%20Tasks/7th%20Semester/Agentic/A1_i230018_Rayan/AI_USAGE.md) are fully populated in the repository and ready for grading.

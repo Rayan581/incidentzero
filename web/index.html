@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IncidentZero — Autonomous SRE Agent Visualizer & Studio</title>
+  <meta name="description" content="Interactive Dark Neomorphic visualizer and runtime tuning studio for IncidentZero autonomous incident response agent.">
+  
+  <!-- Google Fonts: Space Grotesk, Inter, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="neomorphic-theme">
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-badge">
+        <svg class="svg-icon brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span class="brand-title">Incident<span class="brand-highlight">Zero</span></span>
+        <span class="version-tag">SRE Studio</span>
+      </div>
+      
+      <div class="system-status-chip">
+        <span class="pulse-beacon" id="system-beacon"></span>
+        <span id="system-status-text">Simulator Ready</span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="trace-selector-wrap">
+        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        <select id="trace-select" class="neo-select" title="Select Trace">
+          <option value="">Loading traces...</option>
+        </select>
+        <button id="btn-load-trace" class="neo-btn-icon" title="Reload Trace">
+          <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"/>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="metrics-pill">
+        <span class="pill-label">World Ver:</span>
+        <span class="pill-value" id="badge-world-version">v1</span>
+      </div>
+      <div class="metrics-pill">
+        <span class="pill-label">Budget LLM:</span>
+        <span class="pill-value" id="badge-budget-llm">15/15</span>
+      </div>
+      <div class="metrics-pill">
+        <span class="pill-label">Tools:</span>
+        <span class="pill-value" id="badge-budget-tools">15/15</span>
+      </div>
+      <button id="btn-toggle-tweaks" class="neo-btn" title="Toggle System Tweaks">
+        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span>Tweaks</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Layout -->
+  <main class="app-main">
+    <!-- Left Column: Microservices Topology & Node Inspector -->
+    <section class="panel panel-topology">
+      <div class="panel-header">
+        <div class="panel-title-wrap">
+          <svg class="svg-icon panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+            <line x1="6" y1="6" x2="6.01" y2="6"/>
+            <line x1="6" y1="18" x2="6.01" y2="18"/>
+          </svg>
+          <h2>Microservices Topology</h2>
+        </div>
+        <div class="legend-badges">
+          <span class="legend-item"><span class="dot dot-healthy"></span> Healthy</span>
+          <span class="legend-item"><span class="dot dot-degraded"></span> Degraded</span>
+          <span class="legend-item"><span class="dot dot-critical"></span> Critical Path</span>
+        </div>
+      </div>
+
+      <div class="topology-canvas-wrap">
+        <svg id="topology-svg" class="topology-canvas" viewBox="0 0 740 420" preserveAspectRatio="xMidYMid meet">
+          <!-- Dynamically populated by app.js -->
+        </svg>
+      </div>
+
+      <!-- Selected Service Inspector -->
+      <div class="service-inspector neo-inset" id="service-inspector">
+        <div class="inspector-header">
+          <div class="inspector-title-wrap">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <h3 id="inspector-service-name">redis-cache</h3>
+          </div>
+          <span class="status-tag status-degraded" id="inspector-status-tag">DEGRADED</span>
+        </div>
+
+        <div class="inspector-grid">
+          <div class="metric-card neo-card">
+            <span class="metric-label">Replicas</span>
+            <span class="metric-val" id="insp-replicas">2</span>
+          </div>
+          <div class="metric-card neo-card">
+            <span class="metric-label">Error Rate</span>
+            <span class="metric-val text-crimson" id="insp-error-rate">14.0%</span>
+          </div>
+          <div class="metric-card neo-card">
+            <span class="metric-label">P95 Latency</span>
+            <span class="metric-val text-amber" id="insp-p95">800ms</span>
+          </div>
+          <div class="metric-card neo-card">
+            <span class="metric-label">Dependencies</span>
+            <span class="metric-val" id="insp-deps">2 callers</span>
+          </div>
+        </div>
+
+        <div class="inspector-logs" id="insp-logs">
+          <div class="log-entry log-error">ERROR: checksum mismatch for cart session objects</div>
+          <div class="log-entry log-warn">WARN: stale schema objects served</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Center Column: Incident State, Plan & Event Timeline -->
+    <section class="panel panel-intelligence">
+      <!-- Active Incident Header -->
+      <div class="incident-card neo-card" id="incident-card">
+        <div class="incident-top">
+          <div class="incident-id-badge">
+            <span class="severity-pill sev-1" id="inc-severity">SEV-1</span>
+            <span class="inc-id" id="inc-id">INC-726259</span>
+          </div>
+          <div class="incident-evidence" id="inc-evidence">EV-0001</div>
+        </div>
+        <h3 class="incident-title" id="inc-title">Cart sessions show inconsistent state after cache schema migration</h3>
+        <p class="incident-impact" id="inc-impact">Checkout completion rate is below the 99% service objective; customer-facing errors are active.</p>
+        <div class="incident-meta">
+          <span><strong>Suspected:</strong> <span class="text-accent" id="inc-suspected">redis-cache</span></span>
+          <span><strong>Objective:</strong> <span id="inc-objective">Restore checkout >=99%, p95 <=800ms</span></span>
+        </div>
+      </div>
+
+      <!-- Strategic Plan Widget -->
+      <div class="plan-card neo-card" id="plan-card">
+        <div class="plan-card-header">
+          <div class="plan-title-wrap">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <h3>Strategic Remediation Plan</h3>
+          </div>
+          <span class="revision-badge" id="plan-revision">Rev #0</span>
+        </div>
+
+        <div class="hypothesis-box neo-inset">
+          <span class="hypothesis-tag">Hypothesis:</span>
+          <p id="plan-hypothesis">The cache schema migration introduced key format incompatibilities causing session invalidation.</p>
+        </div>
+
+        <div class="plan-steps-container" id="plan-steps-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Execution Stream / Tool Events Feed -->
+      <div class="events-feed-wrap">
+        <div class="feed-header">
+          <div class="feed-title-wrap">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5"/>
+              <line x1="12" y1="19" x2="20" y2="19"/>
+            </svg>
+            <h3>Execution Timeline & Evidence Log</h3>
+          </div>
+          <span class="step-indicator" id="step-counter">Step 0 / 0</span>
+        </div>
+
+        <div class="events-stream" id="events-stream">
+          <!-- Step cards rendered here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: System Tweaks & Control Panel -->
+    <aside class="panel panel-tweaks" id="panel-tweaks">
+      <div class="panel-header">
+        <div class="panel-title-wrap">
+          <svg class="svg-icon panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"/>
+            <line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/>
+            <line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/>
+            <line x1="9" y1="8" x2="15" y2="8"/>
+            <line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+          <h2>Runtime Tweaks</h2>
+        </div>
+      </div>
+
+      <div class="tweaks-body">
+        <!-- Model Selector -->
+        <div class="tweak-group neo-card">
+          <label class="tweak-label" for="tweak-model">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a10 10 0 1 0 10 10H12V2z"/>
+              <path d="M12 2a10 10 0 0 1 10 10h-10V2z"/>
+            </svg>
+            LLM Provider & Model
+          </label>
+          <select id="tweak-model" class="neo-select">
+            <option value="openai/gpt-oss-20b">openai/gpt-oss-20b (Default)</option>
+            <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Heavy)</option>
+            <option value="qwen/qwen3.8-27b">qwen/qwen3.8-27b</option>
+          </select>
+        </div>
+
+        <!-- Scenario Selector -->
+        <div class="tweak-group neo-card">
+          <label class="tweak-label" for="tweak-scenario">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polygon points="10 8 16 12 10 16 10 8"/>
+            </svg>
+            Target Scenario
+          </label>
+          <select id="tweak-scenario" class="neo-select">
+            <option value="public-a">public-a (Cart & Cache Failure)</option>
+            <option value="public-b">public-b (Secondary Cascade)</option>
+          </select>
+        </div>
+
+        <!-- Student ID -->
+        <div class="tweak-group neo-card">
+          <label class="tweak-label" for="tweak-student-id">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            Student Roll Number
+          </label>
+          <input type="text" id="tweak-student-id" class="neo-input" value="23I-0018">
+        </div>
+
+        <!-- Human Approval Policy -->
+        <div class="tweak-group neo-card">
+          <label class="tweak-label">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            HITL Approval Policy
+          </label>
+          <div class="radio-neo-group">
+            <label class="radio-neo">
+              <input type="radio" name="approval_mode" value="interactive" checked>
+              <span class="radio-custom"></span>
+              <span>Interactive Modal</span>
+            </label>
+            <label class="radio-neo">
+              <input type="radio" name="approval_mode" value="auto">
+              <span class="radio-custom"></span>
+              <span>Auto-Approve</span>
+            </label>
+            <label class="radio-neo">
+              <input type="radio" name="approval_mode" value="deny">
+              <span class="radio-custom"></span>
+              <span>Always Deny</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Sliders: Budget & Limits -->
+        <div class="tweak-group neo-card">
+          <div class="slider-header">
+            <span class="tweak-label">LLM Step Budget</span>
+            <span class="slider-val" id="val-budget-llm">15</span>
+          </div>
+          <input type="range" id="slider-budget-llm" class="neo-slider" min="5" max="25" value="15">
+        </div>
+
+        <div class="tweak-group neo-card">
+          <div class="slider-header">
+            <span class="tweak-label">Loop Guard Threshold</span>
+            <span class="slider-val" id="val-loop-guard">2</span>
+          </div>
+          <input type="range" id="slider-loop-guard" class="neo-slider" min="1" max="5" value="2">
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="tweak-actions">
+          <button id="btn-start-run" class="neo-btn neo-btn-primary">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span>Trigger Live Agent</span>
+          </button>
+          <button id="btn-save-tweaks" class="neo-btn">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <span>Save Settings</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Bottom Timeline Replay Controller -->
+  <footer class="app-timeline-dock">
+    <div class="dock-controls">
+      <button id="btn-replay-prev" class="neo-btn-icon" title="Step Back">
+        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="19 20 9 12 19 4 19 20"/>
+          <line x1="5" y1="19" x2="5" y2="5"/>
+        </svg>
+      </button>
+      <button id="btn-replay-play" class="neo-btn-icon neo-btn-accent" title="Play/Pause">
+        <svg class="svg-icon" id="play-pause-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+      </button>
+      <button id="btn-replay-next" class="neo-btn-icon" title="Step Forward">
+        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 4 15 12 5 20 5 4"/>
+          <line x1="19" y1="5" x2="19" y2="19"/>
+        </svg>
+      </button>
+      <button id="btn-replay-reset" class="neo-btn-icon" title="Reset to Start">
+        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="dock-scrubber-wrap">
+      <input type="range" id="timeline-slider" class="neo-slider scrubber" min="0" max="0" value="0">
+      <div class="timeline-labels">
+        <span id="timeline-start-label">Start (0s)</span>
+        <span class="timeline-current-event" id="timeline-current-event">No trace loaded</span>
+        <span id="timeline-end-label">End</span>
+      </div>
+    </div>
+
+    <div class="dock-speed">
+      <span class="speed-label">Speed:</span>
+      <button class="speed-btn active" data-speed="1">1x</button>
+      <button class="speed-btn" data-speed="2">2x</button>
+      <button class="speed-btn" data-speed="4">4x</button>
+    </div>
+  </footer>
+
+  <!-- Human-in-the-Loop Approval Modal -->
+  <div class="modal-backdrop hidden" id="approval-modal">
+    <div class="modal-card neo-card">
+      <div class="modal-top">
+        <div class="modal-alert-beacon">
+          <svg class="svg-icon text-amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <h3>Operator Approval Gateway</h3>
+        </div>
+        <span class="risk-badge risk-high" id="modal-risk-level">HIGH RISK</span>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-instruction">The IncidentZero agent requests authorization to execute a potentially disruptive remediation action:</p>
+
+        <div class="approval-details neo-inset">
+          <div class="approval-row">
+            <span class="appr-key">Action:</span>
+            <span class="appr-val text-accent" id="modal-action-name">restart_service</span>
+          </div>
+          <div class="approval-row">
+            <span class="appr-key">Arguments:</span>
+            <code class="appr-val json-val" id="modal-arguments">{"service": "redis-cache"}</code>
+          </div>
+          <div class="approval-row">
+            <span class="appr-key">Justification:</span>
+            <span class="appr-val" id="modal-justification">Cache health false, error_rate 14%, checksum mismatch indicates corruption.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-modal-deny" class="neo-btn neo-btn-danger">
+          <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          <span>DENY ACTION</span>
+        </button>
+        <button id="btn-modal-approve" class="neo-btn neo-btn-success">
+          <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>APPROVE ACTION</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
