@@ -8,3 +8,9 @@ __pycache__/
 traces/*.jsonl
 artifacts/
 .DS_Store
+
+# Local archives and scratch files
+IncidentZero_Student_Starter.zip
+extracted_starter/
+assignment_a.pdf
+temp.md
